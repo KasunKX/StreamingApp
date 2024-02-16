@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <TextView
+            android:id="@+id/textView"
+            android:layout_width="match_parent"
+            android:layout_height="63dp"
+            android:text="Video Streamer"
+            android:textColor="@color/white"
+            android:background="@color/bgBlue"
+            android:gravity="center_vertical"
+            android:paddingLeft="10dp"
+            android:textSize="15dp"
+           />
+
+        <FrameLayout
+            android:id="@+id/camContainer"
+            android:layout_width="401dp"
+            android:layout_height="416dp"
+            android:layout_gravity="center" >
+
+            <androidx.camera.view.PreviewView
+                android:id="@+id/viewFinder"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginBottom="15dp"/>
+
+
+        </FrameLayout>
+
+        <Button
+            android:id="@+id/generateStreamBtn"
+            android:layout_width="136dp"
+            android:layout_height="38dp"
+            android:layout_gravity="center"
+            android:background="@color/bgLightBlue"
+            android:text="Start Stream"
+            android:textColor="@color/white" />
+
+    </LinearLayout>
+</layout>

@@ -13,7 +13,7 @@ import androidx.lifecycle.LifecycleOwner
 import android.view.SurfaceView
 import androidx.camera.core.Preview.SurfaceProvider
 
-class StreamHandler (var tag : String = "MCT", var context:Context, var ViewCompo: SurfaceView) {
+class StreamHandler (var tag : String = "MCT", var context:Context, var ViewCompo: SurfaceView?=null) {
 
     private var cameraPermissionGranted = false
     companion object{
