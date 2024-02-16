@@ -9,6 +9,11 @@ import com.example.videostreamer.databinding.MainActivityBinding
 import androidx.lifecycle.LifecycleOwner
 import android.widget.Button
 import android.annotation.SuppressLint
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.ImageFormat
+import android.graphics.Rect
+import android.graphics.YuvImage
 
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -41,6 +46,7 @@ import java.io.File
 import okhttp3.*
 import java.io.IOException
 import okhttp3.MediaType
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.asRequestBody
 
 typealias CornersListener = () -> Unit
@@ -97,74 +103,46 @@ class MainActivity : ComponentActivity() {
         streamHandler.onRequestPermissions(requestCode, permissions, grantResults)
     }
 
-    fun imageProxyToByteArray(image: ImageProxy): ByteArray {
-        val yuvBytes = ByteArray(image.width * (image.height + image.height / 2))
-        val yPlane = image.planes[0].buffer
-        val uPlane = image.planes[1].buffer
-        val vPlane = image.planes[2].buffer
 
-        yPlane.get(yuvBytes, 0, image.width * image.height)
+    fun Image.toBitmap(): Bitmap {
+        val yBuffer = planes[0].buffer
+        val vuBuffer = planes[2].buffer
 
-        val chromaRowStride = image.planes[1].rowStride
-        val chromaRowPadding = chromaRowStride - image.width / 2
+        val ySize = yBuffer.remaining()
+        val vuSize = vuBuffer.remaining()
 
-        var offset = image.width * image.height
-        if (chromaRowPadding == 0) {
+        val nv21 = ByteArray(ySize + vuSize)
+        yBuffer.get(nv21, 0, ySize)
 
-            uPlane.get(yuvBytes, offset, image.width * image.height / 4)
-            offset += image.width * image.height / 4
-            vPlane.get(yuvBytes, offset, image.width * image.height / 4)
-        } else {
-            for (i in 0 until image.height / 2) {
-                uPlane.get(yuvBytes, offset, image.width / 2)
-                offset += image.width / 2
-                if (i < image.height / 2 - 2) {
-                    uPlane.position(uPlane.position() + chromaRowPadding)
-                }
-            }
-            for (i in 0 until image.height / 2) {
-                vPlane.get(yuvBytes, offset, image.width / 2)
-                offset += image.width / 2
-                if (i < image.height / 2 - 1) {
-                    vPlane.position(vPlane.position() + chromaRowPadding)
-                }
-            }
-        }
-
-        return yuvBytes
+        val yuvImage = YuvImage(nv21, ImageFormat.NV21, this.width, this.height, null)
+        val out = ByteArrayOutputStream()
+        yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 50, out)
+        val imageBytes = out.toByteArray()
+        return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
     }
 
 
-    fun sendStream(data : String){
+
+    fun sendStream(imageProxy : ImageProxy){
 
         // server url
-        var URL = "http://192.168.1.6:5000/send"
+        var URL = "http://192.168.146.180:5000/send"
         var client = OkHttpClient()
 
+        val bitmap = imageProxy.toBitmap()
 
-        // req body
-//        val yuvDataString = android.util.Base64.encodeToString(image, android.util.Base64.DEFAULT)
+        val outputStream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 1, outputStream)
+        val byteArray = outputStream.toByteArray()
 
+        val mediaType = "image/png".toMediaType()
+        val requestBody = byteArray.toRequestBody(mediaType)
 
-//        val file = File("{${image}}")
-
-
-
-        val body = MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart("test", "1")
-            .build()
-
-        val request = Request.Builder()
-            .url(URL)
-            .post(body)
-            .header("Content-Type", "application/json")
-            .build()
 
         // Create the request
         val req = Request.Builder()
             .url(URL)
-            .post(body)
+            .post(requestBody)
             .build()
 
 
@@ -173,7 +151,10 @@ class MainActivity : ComponentActivity() {
         client.newCall(req).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
                 // Handle failure
+
                 e.printStackTrace()
+
+                Log.d(TAG, "Error ${e.message}")
             }
 
             override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
@@ -187,6 +168,7 @@ class MainActivity : ComponentActivity() {
         })
 
     }
+
 
 
     @OptIn(ExperimentalGetImage::class) private fun startCamera() {
@@ -216,30 +198,15 @@ class MainActivity : ComponentActivity() {
 
             Log.d(TAG, "Initializing Stream...")
 
+
+            // ImAage Analysis ******************************************************
             imageAnalysis.setAnalyzer(Executors.newSingleThreadExecutor(), ImageAnalysis.Analyzer { imageProxy ->
                 val rotationDegrees = imageProxy.imageInfo.rotationDegrees
 
-                val image = imageProxy
-                Log.d(TAG, "${image.width}")
-                Log.d(TAG, "${image.height}")
-                Log.d(TAG, "${image.format}")
-                Log.d(TAG, "${image.imageInfo}")
-                Log.d(TAG, "${image.image}")
+                sendStream(imageProxy)
 
-                val img: Image = image!!.image!!
 
-                val byteArrayOutputStream = ByteArrayOutputStream()
-                image.use { img ->
-                    val byteBuffer = img.planes[0].buffer
-                    val bytes = ByteArray(byteBuffer.remaining())
-                    byteBuffer.get(bytes)
-                    byteArrayOutputStream.write(bytes)
-                }
-                val imageByteArray = byteArrayOutputStream.toByteArray()
-
-                Log.d(TAG, "$imageByteArray")
-
-                sendStream("1")
+//                sendStream(bytes)
                 // call the
 
                 imageProxy.close()
